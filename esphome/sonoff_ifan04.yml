@@ -1,0 +1,243 @@
+substitutions:
+  device_name: ifan04_sunroom
+  friendly_name: iFan04-Sunroom
+
+esphome:
+  name: "${device_name}"
+  platform: ESP8266
+  board: esp01_1m
+  includes:
+    - sonoff_ifan04.h
+  on_boot:
+    priority: 225
+    # turn off the light as early as possible
+    then:
+      - light.turn_off: ${device_name}_light
+
+# esp8266:
+#   board: esp8285
+
+wifi:
+  ssid: !secret ssid
+  password: !secret wifi_pass
+  ap:
+    ssid: "${friendly_name}"
+    password: !secret userpass
+
+captive_portal:
+
+api:
+
+logger:
+
+ota:
+
+time:
+  - platform: homeassistant
+    id: homeassistant_time
+
+remote_receiver:
+  pin: GPIO3
+
+binary_sensor:
+  - platform: gpio
+    id: button
+    pin:
+      number: GPIO0
+    on_press:
+      then:
+        - light.toggle: ${device_name}_light
+
+  - platform: remote_receiver
+    name: "Buzzer"
+    id: remote_buzzer
+    internal: true
+    raw:
+      code: [-207, 104, -103, 104, -104, 103, -104, 207, -104, 103, -104, 103, -104, 104, -103, 104, -103, 104, -104, 107, -721, 105, -206, 207, -518, 105, -931, 104, -104, 103, -725, 104, -104, 103, -725, 104, -104, 103, -207, 104, -414]
+    on_release:
+      then:
+        - switch.toggle: buzzer_dummy
+
+  - platform: remote_receiver
+    name: "Fan 0"
+    id: remote_0
+    raw:
+      code: [-207, 104, -103, 104, -104, 103, -104, 207, -104, 103, -104, 104, -103, 104, -104, 103, -104, 105, -102, 104, -725, 104, -311, 103, -518, 104, -933, 103, -104, 104, -725, 104, -932, 104, -207, 207, -519]
+    on_release:
+      then:
+        - fan.turn_off: ${device_name}_fan
+    internal: true
+
+  - platform: remote_receiver
+    id: remote_fan1
+    raw:
+      code: [-207, 104, -104, 103, -104, 104, -103, 207, -104, 104, -103, 104, -104, 103, -104, 104, -103, 104, -104, 103, -726, 103, -312, 103, -518, 104, -933, 103, -104, 104, -725, 104, -103, 104, -726, 103, -104, 311, -518]
+    on_release:
+      then:
+        - fan.turn_on:
+              id: ${device_name}_fan
+              speed: 1
+        - if:
+            condition:
+              and:
+                - switch.is_on: buzzer_dummy
+            then:
+              - output.turn_on: buzzer
+              - delay: 50ms
+              - output.turn_off: buzzer
+    internal: true
+  - platform: remote_receiver
+    id: remote_fan2
+    raw:
+      code: [-208, 103, -104, 104, -103, 104, -103, 208, -103, 104, -104, 103, -104, 104, -103, 104, -104, 103, -104, 103, -726, 104, -310, 104, -518, 104, -933, 103, -104, 104, -725, 104, -207, 104, -622, 103, -416, 102, -415]
+    on_release:
+      then:
+        - fan.turn_on:
+              id: ${device_name}_fan
+              speed: 2
+        - if:
+            condition:
+              and:
+                - switch.is_on: buzzer_dummy
+            then:
+              - output.turn_on: buzzer
+              - delay: 50ms
+              - output.turn_off: buzzer
+              - delay: 50ms
+              - output.turn_on: buzzer
+              - delay: 50ms
+              - output.turn_off: buzzer
+    internal: true
+
+  - platform: remote_receiver
+    id: remote_fan3
+    raw:
+      code: [-207, 104, -104, 103, -104, 104, -103, 208, -103, 104, -104, 103, -104, 104, -103, 104, -104, 103, -104, 103, -726, 104, -311, 104, -518, 103, -934, 103, -103, 104, -726, 103, -104, 207, -622, 104, -103, 104, -207, 104, -415]
+    on_release:
+      then:
+        - fan.turn_on:
+              id: ${device_name}_fan
+              speed: 3
+        - if:
+            condition:
+              and:
+                - switch.is_on: buzzer_dummy
+            then:
+              - output.turn_on: buzzer
+              - delay: 50ms
+              - output.turn_off: buzzer
+              - delay: 50ms
+              - output.turn_on: buzzer
+              - delay: 50ms
+              - output.turn_off: buzzer
+              - delay: 50ms
+              - output.turn_on: buzzer
+              - delay: 50ms
+              - output.turn_off: buzzer
+    internal: true
+
+  - platform: remote_receiver
+    id: remote_light
+    raw:
+      code: [-207, 104, -103, 104, -104, 103, -104, 207, -104, 103, -104, 104, -103, 104, -103, 104, -104, 103, -104, 104, -725, 104, -311, 103, -518, 104, -933, 103, -104, 103, -726, 103, -311, 104, -518, 104, -207, 104, -103, 104, -414]
+    on_release:
+      then:
+        - light.toggle: ${device_name}_light
+
+
+output:
+  - platform: custom
+    type: float
+    outputs:
+      id: fanoutput
+    lambda: |-
+      auto ${device_name}_fan = new IFan04Output();
+      App.register_component(${device_name}_fan);
+      return {${device_name}_fan};
+
+  - platform: gpio
+    pin: GPIO9
+    inverted: True
+    id: light_output
+
+  - platform: gpio
+    pin: GPIO10
+    id: buzzer
+    inverted: true
+
+light:
+  - platform: binary
+    name: "${friendly_name} Light"
+    output: light_output
+    id: ${device_name}_light
+
+switch:
+  - platform: template
+    id: buzzer_dummy
+    name: "Buzzer"
+    optimistic: True
+
+  - platform: template
+    id: update_fan_speed
+    optimistic: True
+    turn_on_action:
+      then:
+        - delay: 200ms
+        - if:
+            condition:
+              and:
+                - switch.is_off: fan_relay1
+                - switch.is_off: fan_relay2
+                - switch.is_off: fan_relay3
+            then:
+              - fan.turn_off: ${device_name}_fan
+        - if:
+            condition:
+              and:
+                - switch.is_on: fan_relay1
+                - switch.is_off: fan_relay2
+                - switch.is_off: fan_relay3
+            then:
+              - fan.turn_on:
+                  id: ${device_name}_fan
+                  speed: 1
+        - if:
+            condition:
+              and:
+                - switch.is_on: fan_relay1
+                - switch.is_on: fan_relay2
+                - switch.is_off: fan_relay3
+            then:
+              - fan.turn_on:
+                  id: ${device_name}_fan
+                  speed: 2
+        - if:
+            condition:
+              and:
+                - switch.is_on: fan_relay1
+                - switch.is_off: fan_relay2
+                - switch.is_on: fan_relay3
+            then:
+              - fan.turn_on:
+                  id: ${device_name}_fan
+                  speed: 3
+        - switch.turn_off: update_fan_speed
+
+  - platform: gpio
+    pin: GPIO14
+    id: fan_relay1
+
+  - platform: gpio
+    pin: GPIO12
+    id: fan_relay2
+
+  - platform: gpio
+    pin: GPIO15
+    id: fan_relay3
+
+fan:
+  - platform: speed
+    output: fanoutput
+    id: ${device_name}_fan
+    name: "${friendly_name} Fan"
+    speed_count: 3
